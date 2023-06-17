@@ -6,7 +6,7 @@ services:
     restart: always
     # Included NGINX config used hostname to determine what it's server_name will be 
     # Either set NGINX_HOSTNAME to it's public DNS name, change this line, or the config
-    hostname: gencyber-juiceshop.ddns.net
+    hostname: localhost
     ports:
       - "443:8443"
     volumes:
