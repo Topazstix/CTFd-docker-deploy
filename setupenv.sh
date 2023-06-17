@@ -28,6 +28,7 @@
 # sudo apt update -y
 # sudo apt install -y ca-certificates curl gnupg certbot git
 
+# ## Reference the backup setupenv; need to follow same instruction they did for moving dirs
 # ## Clone CTFd repo
 # git clone --single-branch https://github.com/CTFd/CTFd.git
 
