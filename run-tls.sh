@@ -1,1 +1,1 @@
-docker-compose -f docker-compose.yml -f docker-compose-production.yml up -d
+docker compose -f ./CTFd/docker-compose.yml -f docker-compose-production.yml up

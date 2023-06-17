@@ -1,47 +1,88 @@
-#!/bin/bash
-echo ""
-read -p "Before you run, check the latest compose version at: https://docs.docker.com/compose/install/"
-echo "First this will clone a pinned version of the CTFd repository"
-git clone --single-branch https://github.com/CTFd/CTFd.git CTFdTEMP
-mv ./CTFdTEMP/* ./
-rm -rf ./CTFdTEMP
-sudo apt-get remove docker docker-engine docker.io containerd runc
-sudo apt-get update -y
-sudo apt-get install \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg-agent \
-    software-properties-common -y
+#!/usr/bin/bash
 
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo apt-key fingerprint 0EBFCD88
-echo ""
-echo "The fingerprint above should match:"
-echo "pub   rsa4096 2017-02-22 [SCEA]"
-echo "      9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88"
-echo "uid           [ unknown] Docker Release (CE deb) <docker@docker.com>"
-echo "sub   rsa4096 2017-02-22 [S]"
-echo ""
-read -p ""
+# ## Verify user is running as root
+# if [ "$EUID" -ne 0 ]; then 
+# echo "Failed to execute. Please run the following:"
+# echo "sudo ./$0"
+#   exit 1
+# fi
 
-echo ""
-sudo add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"
-sudo apt-get update -y
-sudo apt-get install docker-ce docker-ce-cli containerd.io -y
-sudo usermod -aG docker ubuntu
-sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-docker-compose --version
-sudo apt-get update -y
-sudo apt-get install software-properties-common -y
-sudo add-apt-repository universe
-sudo add-apt-repository ppa:certbot/certbot
-sudo apt-get update -y
-sudo apt-get install certbot -y
-echo ""
-read -p "You should now logout and login again!"
+# ## Store user's name
+# local_user=$SUDO_USER
+
+# ## If local_user is "root", exit and ask user to run as sudo
+# if [ "$local_user" == "root" ]; then
+#   echo "Failed to execute. Please run the following:"
+#   echo "sudo ./$0"
+#   exit 1
+# fi
+
+# local_user=$USER
+
+# ## Remove unofficial docker versions from system
+# for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do 
+#     sudo apt remove $pkg; 
+# done
+
+# ## Update apt repos and download relevant packages
+# sudo apt update -y
+# sudo apt install -y ca-certificates curl gnupg certbot git
+
+# ## Clone CTFd repo
+# git clone --single-branch https://github.com/CTFd/CTFd.git
+
+# ## Add Docker's official GPG key
+# sudo install -m 0755 -d /etc/apt/keyrings
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+# sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# ## Add Docker's official apt repo
+# echo \
+#   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+#   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+#   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# ## Update apt repos and download docker
+# sudo apt update -y
+# sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# ## Check that group docker was added, else add it
+# if [ $(getent group docker) ]; then
+#   echo "Group docker already exists"
+# else
+#   sudo groupadd docker
+# fi
+
+# ## Allow user to run docker
+# sudo usermod -aG docker $local_user
+# newgrp docker
+
+## Implement HTTPS 
+read -p "Use HTTPS? (y/n): " https
+
+if [[ $https == "y" ]]; then
+  ## Get domain name
+  read -p "Enter domain name: " domain
+
+  ## Execute certbot
+  echo "*********************************************************"
+  echo "YOU MAY NEED TO RERUN THE FOLLOWING COMMAND MANUALLY"
+  echo "sudo certbot certonly --standalone -d $domain"
+  echo "Sometimes this will error out, rerunning should solve it"
+  echo "*********************************************************"
+  read -p "Press enter to continue to certbot setup"
+  sudo certbot certonly --standalone -d $domain
+  
+  ## Find new key and copy to ssl directory
+  sudo find /etc/letsencrypt/live/$domain -name privkey.pem -exec cp {} ./ssl/ \;
+  sudo find /etc/letsencrypt/live/$domain -name fullchain.pem -exec cp {} ./ssl/ \;
+  sudo mv ./ssl/privkey.pem  ./ssl/ctfd.key
+  sudo mv ./ssl/fullchain.pem ./ssl/ctfd.crt
+
+  ## Replace hostname in docker-compose-production.yml
+  sed -i "s/localhost/$domain/g" docker-compose-production.yml
+  
+  exit 0
+fi
+exit 0
 
